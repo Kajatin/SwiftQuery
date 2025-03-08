@@ -112,7 +112,7 @@ public final class Mutation<Request: Sendable, Response>: @unchecked Sendable {
 
                         self.status = .error
                         self.failureCount += 1
-                        
+
                         self.onError(error)
                         self.onSettled(nil, error)
                     case .finished:

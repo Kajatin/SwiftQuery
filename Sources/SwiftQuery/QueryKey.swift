@@ -34,7 +34,7 @@ public struct QueryKey: Hashable, CustomDebugStringConvertible {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(keys)
     }
-    
+
     internal func isCompleteSubset(of other: QueryKey) -> Bool {
         return self.keys.allSatisfy { key in
             other.keys.contains(key)

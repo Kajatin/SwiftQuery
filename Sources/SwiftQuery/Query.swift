@@ -77,7 +77,7 @@ public final class Query<Response: Codable>: @unchecked Sendable {
     @ObservationIgnored private var notificationCancellables = Set<
         AnyCancellable
     >()
-    
+
     @ObservationIgnored private var executionPolicy: QueryExecutionPolicy
 
     @ObservationIgnored private let logger = Logger(
@@ -107,7 +107,7 @@ public final class Query<Response: Codable>: @unchecked Sendable {
         self.refetchInterval = refetchInterval
         self.retry = retry
         self.retryDelay = retryDelay
-        
+
         self.executionPolicy = executionPolicy
 
         // Registerting this query with the client enables the
@@ -116,8 +116,6 @@ public final class Query<Response: Codable>: @unchecked Sendable {
         QueryClient.shared.register(queryKey)
 
         self.subscribeToNotifications()
-        
-        self.setupTimer()
 
         // Let's kick-start the refetch process by invalidating immediately
         QueryClient.shared.invalidateQuery(with: self.queryKey)
@@ -126,19 +124,14 @@ public final class Query<Response: Codable>: @unchecked Sendable {
     private func refetch() {
         self.logger.debug("Running `refetch()` at \(Date.now)")
 
-        if !self.cancellables.isEmpty {
-            logger.debug(
-                "Skipping `refetch()` since count is already non-zero: \(self.cancellables.count)"
-            )
-            return
-        }
-        
+        self.setupTimer()
+
         if case .subscriptionBased(let value) = self.executionPolicy {
             if value == 0 {
                 self.fetchStatus = .paused
-                
+
                 self.logger.debug("No active subscribers, query is paused")
-                
+
                 return
             }
         }
@@ -167,15 +160,9 @@ public final class Query<Response: Codable>: @unchecked Sendable {
 
                         self.status = .success
                         self.failureCount = 0
-
-                        if self.timerCancellables.isEmpty {
-                            self.setupTimer()
-                        }
                     }
 
                     self.fetchStatus = .idle
-
-                    self.cancellables.removeAll()
 
                     if self.failureCount > 0 && self.failureCount <= self.retry {
                         self.logger.debug(
@@ -196,6 +183,10 @@ public final class Query<Response: Codable>: @unchecked Sendable {
     }
 
     private func setupTimer() {
+        if !self.timerCancellables.isEmpty {
+            return
+        }
+
         if let interval = self.refetchInterval {
             Timer.publish(every: interval, on: .main, in: .common)
                 .autoconnect()
@@ -244,7 +235,7 @@ extension Query {
             })
             .store(in: &notificationCancellables)
     }
-    
+
     private func subscribeToSubscriberOnNotifications() {
         NotificationCenter
             .default
@@ -255,15 +246,17 @@ extension Query {
                     if !invalidationKey.isCompleteSubset(of: self.queryKey) {
                         return
                     }
-                    
+
                     if case .subscriptionBased(let value) = self.executionPolicy {
                         self.executionPolicy = .subscriptionBased(value + 1)
+
+                        self.refetch()
                     }
                 }
             })
             .store(in: &notificationCancellables)
     }
-    
+
     private func subscribeToSubscriberOffNotifications() {
         NotificationCenter
             .default
@@ -274,7 +267,7 @@ extension Query {
                     if !invalidationKey.isCompleteSubset(of: self.queryKey) {
                         return
                     }
-                    
+
                     if case .subscriptionBased(let value) = self.executionPolicy {
                         self.executionPolicy = .subscriptionBased(max(value - 1, 0))
                     }
@@ -282,7 +275,7 @@ extension Query {
             })
             .store(in: &notificationCancellables)
     }
-    
+
     private func subscribeToNotifications() {
         self.subscribeToInvalidationNotifications()
         self.subscribeToSubscriberOnNotifications()
