@@ -1,3 +1,10 @@
+//
+//  Query.swift
+//  SwiftQuery
+//
+//  Created by Roland Kajatin on 23/02/2025.
+//
+
 import Combine
 import Foundation
 import OSLog
@@ -70,6 +77,8 @@ public final class Query<Response: Codable>: @unchecked Sendable {
     @ObservationIgnored private var invalidationCancellables = Set<
         AnyCancellable
     >()
+    
+    @ObservationIgnored private var userPaused: Bool
 
     @ObservationIgnored private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
@@ -82,9 +91,9 @@ public final class Query<Response: Codable>: @unchecked Sendable {
     public init(
         queryKey: QueryKey,
         queryFn: @escaping () -> AnyPublisher<Response, Error>,
-        refetchInterval: TimeInterval? = nil,
-        retry: UInt = 3,
-        retryDelay: TimeInterval? = nil
+        refetchInterval: TimeInterval?,
+        retry: UInt,
+        retryDelay: TimeInterval
     ) {
         // Initialize public states
         self.status = .pending
@@ -96,7 +105,9 @@ public final class Query<Response: Codable>: @unchecked Sendable {
         self.queryKey = queryKey
         self.refetchInterval = refetchInterval
         self.retry = retry
-        self.retryDelay = retryDelay ?? 0.1
+        self.retryDelay = retryDelay
+        
+        self.userPaused = false
 
         // Registerting this query with the client enables the
         // sending of messages by referencing the query key from
@@ -108,6 +119,14 @@ public final class Query<Response: Codable>: @unchecked Sendable {
         // Let's kick-start the refetch process by invalidating immediately
         QueryClient.shared.invalidateQuery(for: self.queryKey)
     }
+    
+    public func pause() {
+        self.userPaused = true
+    }
+    
+    public func resume() {
+        self.userPaused = false
+    }
 
     private func refetch() {
         self.logger.debug("Running `refetch()` at \(Date.now)")
@@ -116,6 +135,14 @@ public final class Query<Response: Codable>: @unchecked Sendable {
             logger.debug(
                 "Skipping `refetch()` since count is already non-zero: \(self.cancellables.count)"
             )
+            return
+        }
+        
+        if self.userPaused {
+            self.fetchStatus = .paused
+            
+            self.logger.debug("User has paused the query, so skipping refetch")
+            
             return
         }
 
