@@ -13,12 +13,12 @@ extension Query {
     public convenience init(
         queryKey: QueryKey,
         queryFn: @escaping () -> AnyPublisher<Response, Error>,
-        executionPolicy: QueryExecutionPolicy?
+        executionPolicy: QueryExecutionPolicy = .automatic
     ) {
         self.init(
             queryKey: queryKey,
             queryFn: queryFn,
-            executionPolicy: executionPolicy ?? .automatic,
+            executionPolicy: executionPolicy,
             refetchInterval: nil,
             retry: 3,
             retryDelay: 0.1
@@ -30,12 +30,12 @@ extension Query {
         queryKey: QueryKey,
         queryFn: @escaping () -> AnyPublisher<Response, Error>,
         refetchInterval: TimeInterval,
-        executionPolicy: QueryExecutionPolicy?
+        executionPolicy: QueryExecutionPolicy = .automatic
     ) {
         self.init(
             queryKey: queryKey,
             queryFn: queryFn,
-            executionPolicy: executionPolicy ?? .automatic,
+            executionPolicy: executionPolicy,
             refetchInterval: refetchInterval,
             retry: 3,
             retryDelay: 0.1
@@ -48,12 +48,12 @@ extension Query {
         queryFn: @escaping () -> AnyPublisher<Response, Error>,
         retry: UInt,
         retryDelay: TimeInterval,
-        executionPolicy: QueryExecutionPolicy?
+        executionPolicy: QueryExecutionPolicy = .automatic
     ) {
         self.init(
             queryKey: queryKey,
             queryFn: queryFn,
-            executionPolicy: executionPolicy ?? .automatic,
+            executionPolicy: executionPolicy,
             refetchInterval: nil,
             retry: retry,
             retryDelay: retryDelay
