@@ -9,6 +9,8 @@ import Combine
 import Foundation
 import OSLog
 
+/// Interface to create smart data mutation functionality.
+
 @Observable
 public final class Mutation<Request: Sendable, Response>: @unchecked Sendable {
     // MARK: Public states

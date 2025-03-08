@@ -33,15 +33,15 @@ public final class Query<Response: Codable>: @unchecked Sendable {
 
     /// The last successfully resolved data for the query.
     public var data: Response?
-    /// The date for when the query most recently returned the status as ``QueryStatus.success``.
+    /// The date for when the query most recently returned the status as `QueryStatus.success`.
     public var dataUpdatedAt: Date?
 
     /// The error object for the query, if an error was thrown.
     public var error: (any Error)?
-    /// The timestamp for when the query most recently returned the status as ``QueryStatus.error``.
+    /// The timestamp for when the query most recently returned the status as `QueryStatus.error`.
     public var errorUpdatedAt: Date?
 
-    /// TODO
+    /// Indicates the status of the fetch operation.
     public var fetchStatus: FetchStatus
     /// A derived boolean from the ``fetchStatus`` variable above, provided for convenience.
     public var isFetching: Bool {
