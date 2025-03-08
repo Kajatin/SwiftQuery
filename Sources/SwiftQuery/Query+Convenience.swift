@@ -12,27 +12,51 @@ extension Query {
     /// Convenience initializer for ``Query`` with a key and function. The query will not refetch automatically.
     public convenience init(
         queryKey: QueryKey,
-        queryFn: @escaping () -> AnyPublisher<Response, Error>
+        queryFn: @escaping () -> AnyPublisher<Response, Error>,
+        executionPolicy: QueryExecutionPolicy?
     ) {
-        self.init(queryKey: queryKey, queryFn: queryFn, refetchInterval: nil, retry: 3, retryDelay: 0.1)
+        self.init(
+            queryKey: queryKey,
+            queryFn: queryFn,
+            executionPolicy: executionPolicy ?? .automatic,
+            refetchInterval: nil,
+            retry: 3,
+            retryDelay: 0.1
+        )
     }
-    
+
     /// Convenience initializer for ``Query`` with automatic refetching at the provided refetch interval.
     public convenience init(
         queryKey: QueryKey,
         queryFn: @escaping () -> AnyPublisher<Response, Error>,
-        refetchInterval: TimeInterval
+        refetchInterval: TimeInterval,
+        executionPolicy: QueryExecutionPolicy?
     ) {
-        self.init(queryKey: queryKey, queryFn: queryFn, refetchInterval: refetchInterval, retry: 3, retryDelay: 0.1)
+        self.init(
+            queryKey: queryKey,
+            queryFn: queryFn,
+            executionPolicy: executionPolicy ?? .automatic,
+            refetchInterval: refetchInterval,
+            retry: 3,
+            retryDelay: 0.1
+        )
     }
-    
+
     /// Convenience initializer for ``Query`` with custom retry configuration. The query will not refetch automatically.
     public convenience init(
         queryKey: QueryKey,
         queryFn: @escaping () -> AnyPublisher<Response, Error>,
         retry: UInt,
-        retryDelay: TimeInterval
+        retryDelay: TimeInterval,
+        executionPolicy: QueryExecutionPolicy?
     ) {
-        self.init(queryKey: queryKey, queryFn: queryFn, refetchInterval: nil, retry: retry, retryDelay: retryDelay)
+        self.init(
+            queryKey: queryKey,
+            queryFn: queryFn,
+            executionPolicy: executionPolicy ?? .automatic,
+            refetchInterval: nil,
+            retry: retry,
+            retryDelay: retryDelay
+        )
     }
 }

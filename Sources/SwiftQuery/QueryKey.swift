@@ -16,7 +16,7 @@ import Foundation
 /// Invalidating `["key"]` will refetch both of these queries with keys: `["key"]`
 /// and `["key", "anotherKey"`].
 public struct QueryKey: Hashable, CustomDebugStringConvertible {
-    internal let keys: [AnyHashable]
+    private let keys: [AnyHashable]
 
     public var debugDescription: String {
         "[" + self.keys.map(\.self.description).joined(separator: ", ") + "]"
@@ -33,5 +33,11 @@ public struct QueryKey: Hashable, CustomDebugStringConvertible {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(keys)
+    }
+    
+    internal func isCompleteSubset(of other: QueryKey) -> Bool {
+        return self.keys.allSatisfy { key in
+            other.keys.contains(key)
+        }
     }
 }

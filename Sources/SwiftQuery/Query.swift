@@ -74,11 +74,11 @@ public final class Query<Response: Codable>: @unchecked Sendable {
 
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored private var timerCancellables = Set<AnyCancellable>()
-    @ObservationIgnored private var invalidationCancellables = Set<
+    @ObservationIgnored private var notificationCancellables = Set<
         AnyCancellable
     >()
     
-    @ObservationIgnored private var userPaused: Bool
+    @ObservationIgnored private var executionPolicy: QueryExecutionPolicy
 
     @ObservationIgnored private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier!,
@@ -91,6 +91,7 @@ public final class Query<Response: Codable>: @unchecked Sendable {
     public init(
         queryKey: QueryKey,
         queryFn: @escaping () -> AnyPublisher<Response, Error>,
+        executionPolicy: QueryExecutionPolicy,
         refetchInterval: TimeInterval?,
         retry: UInt,
         retryDelay: TimeInterval
@@ -107,25 +108,17 @@ public final class Query<Response: Codable>: @unchecked Sendable {
         self.retry = retry
         self.retryDelay = retryDelay
         
-        self.userPaused = false
+        self.executionPolicy = executionPolicy
 
         // Registerting this query with the client enables the
         // sending of messages by referencing the query key from
         // anywhere in the code (e.g. to invalidate the query).
         QueryClient.shared.register(queryKey)
 
-        self.subscribeToInvalidationNotifications()
+        self.subscribeToNotifications()
 
         // Let's kick-start the refetch process by invalidating immediately
-        QueryClient.shared.invalidateQuery(for: self.queryKey)
-    }
-    
-    public func pause() {
-        self.userPaused = true
-    }
-    
-    public func resume() {
-        self.userPaused = false
+        QueryClient.shared.invalidateQuery(with: self.queryKey)
     }
 
     private func refetch() {
@@ -138,12 +131,14 @@ public final class Query<Response: Codable>: @unchecked Sendable {
             return
         }
         
-        if self.userPaused {
-            self.fetchStatus = .paused
-            
-            self.logger.debug("User has paused the query, so skipping refetch")
-            
-            return
+        if case .subscriptionBased(let value) = self.executionPolicy {
+            if value == 0 {
+                self.fetchStatus = .paused
+                
+                self.logger.debug("No active subscribers, query is paused")
+                
+                return
+            }
         }
 
         self.fetchStatus = .fetching
@@ -222,6 +217,8 @@ public final class Query<Response: Codable>: @unchecked Sendable {
     }
 }
 
+// MARK: Extensions
+
 extension Query {
     private func subscribeToInvalidationNotifications() {
         NotificationCenter
@@ -230,11 +227,7 @@ extension Query {
             .eraseToAnyPublisher()
             .sink(receiveValue: { value in
                 if let invalidationKey = value.object as? QueryKey {
-                    let perfectMatch = invalidationKey.keys.allSatisfy { key in
-                        self.queryKey.keys.contains(key)
-                    }
-
-                    if !perfectMatch {
+                    if !invalidationKey.isCompleteSubset(of: self.queryKey) {
                         return
                     }
 
@@ -247,6 +240,50 @@ extension Query {
                     self.refetch()
                 }
             })
-            .store(in: &invalidationCancellables)
+            .store(in: &notificationCancellables)
+    }
+    
+    private func subscribeToSubscriberOnNotifications() {
+        NotificationCenter
+            .default
+            .publisher(for: QueryClient.subscriberOnNotificationName)
+            .eraseToAnyPublisher()
+            .sink(receiveValue: { value in
+                if let invalidationKey = value.object as? QueryKey {
+                    if !invalidationKey.isCompleteSubset(of: self.queryKey) {
+                        return
+                    }
+                    
+                    if case .subscriptionBased(let value) = self.executionPolicy {
+                        self.executionPolicy = .subscriptionBased(value + 1)
+                    }
+                }
+            })
+            .store(in: &notificationCancellables)
+    }
+    
+    private func subscribeToSubscriberOffNotifications() {
+        NotificationCenter
+            .default
+            .publisher(for: QueryClient.subscriberOffNotificationName)
+            .eraseToAnyPublisher()
+            .sink(receiveValue: { value in
+                if let invalidationKey = value.object as? QueryKey {
+                    if !invalidationKey.isCompleteSubset(of: self.queryKey) {
+                        return
+                    }
+                    
+                    if case .subscriptionBased(let value) = self.executionPolicy {
+                        self.executionPolicy = .subscriptionBased(max(value - 1, 0))
+                    }
+                }
+            })
+            .store(in: &notificationCancellables)
+    }
+    
+    private func subscribeToNotifications() {
+        self.subscribeToInvalidationNotifications()
+        self.subscribeToSubscriberOnNotifications()
+        self.subscribeToSubscriberOffNotifications()
     }
 }

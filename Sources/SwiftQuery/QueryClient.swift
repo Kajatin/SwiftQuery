@@ -16,10 +16,10 @@ public class QueryClient: @unchecked Sendable {
     private var registeredQueries = [QueryKey]()
 }
 
-extension QueryClient {
+public extension QueryClient {
     /// Registers the provided `QueryKey` into the shared registry. Registered queries can be
     /// referenced later for operations such as invalidation.
-    public func register(_ key: QueryKey) {
+    func register(_ key: QueryKey) {
         if self.registeredQueries.contains(key) {
             return
         }
@@ -28,24 +28,57 @@ extension QueryClient {
     }
 }
 
-extension QueryClient {
-    /// Publishes an invalidation notification for all of the registered queries. This function forces **all**
-    /// queries to refetch.
-    public func invalidateQueries() {
-        self.invalidateQueries(for: self.registeredQueries)
+public extension QueryClient {
+    /// Publishes an invalidation notification for all of the registered queries. This function forces **all** queries to refetch.
+    func invalidateQueries() {
+        self.invalidateQueries(with: self.registeredQueries)
     }
 
     /// Publishes an invalidation notification for the provided queries.
-    public func invalidateQueries(for keys: [QueryKey]) {
-        registeredQueries.forEach { key in
-            self.invalidateQuery(for: key)
+    func invalidateQueries(with keys: [QueryKey]) {
+        keys.forEach { key in
+            self.invalidateQuery(with: key)
         }
     }
 
     /// Publishes an invalidation notification for the provided query.
-    public func invalidateQuery(for key: QueryKey) {
+    func invalidateQuery(with key: QueryKey) {
         NotificationCenter.default.post(
-            name: Notification.Name("swiftquery.invalidate"),
+            name: QueryClient.invalidateNotificationName,
+            object: key
+        )
+    }
+}
+
+public extension QueryClient {
+    /// Notifies the corresponding queries of intent to receive up to date information from the queries.
+    func subscribeToQueries(with keys: [QueryKey]) {
+        keys.forEach { key in
+            self.subscribeToQuery(with: key)
+        }
+    }
+
+    /// Notifies the corresponding query of intent to receive up to date information from the query.
+    func subscribeToQuery(with key: QueryKey) {
+        NotificationCenter.default.post(
+            name: QueryClient.subscriberOnNotificationName,
+            object: key
+        )
+    }
+}
+
+public extension QueryClient {
+    /// Notifies the corresponding queries of the revocation of intent to receive up to date information from the queries.
+    func unsubscribeFromQueries(with keys: [QueryKey]) {
+        keys.forEach { key in
+            self.unsubscribeFromQuery(with: key)
+        }
+    }
+
+    /// Notifies the corresponding query of the revocation of intent to receive up to date information from the query.
+    func unsubscribeFromQuery(with key: QueryKey) {
+        NotificationCenter.default.post(
+            name: QueryClient.subscriberOffNotificationName,
             object: key
         )
     }
@@ -53,4 +86,6 @@ extension QueryClient {
 
 internal extension QueryClient {
     static let invalidateNotificationName = Notification.Name("swiftquery.invalidate")
+    static let subscriberOnNotificationName = Notification.Name("swiftquery.subscriber.on")
+    static let subscriberOffNotificationName = Notification.Name("swiftquery.subscriber.off")
 }
