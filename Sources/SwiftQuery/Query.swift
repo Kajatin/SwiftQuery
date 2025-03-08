@@ -116,6 +116,8 @@ public final class Query<Response: Codable>: @unchecked Sendable {
         QueryClient.shared.register(queryKey)
 
         self.subscribeToNotifications()
+        
+        self.setupTimer()
 
         // Let's kick-start the refetch process by invalidating immediately
         QueryClient.shared.invalidateQuery(with: self.queryKey)
